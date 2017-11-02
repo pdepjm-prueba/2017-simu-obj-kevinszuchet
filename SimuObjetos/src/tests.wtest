@@ -1,7 +1,15 @@
-// Acá los tests
+import codigo.*
 
-test "testX" {
-
-	assert.that(true)
-
+describe "Un dia de trabajo para los minions" {
+	var jorge
+	var unaMucama
+	
+	fixture {
+		unaMucama = new Mucama()
+		jorge = new Biclope(unaMucama)
+	}
+	
+	test "Un biclope con 10 de stamina, se le agrega stamina y tira error" {
+		assert.throwsExceptionLike(new BiciclopeException('Un biciclope no puede tener mas de 10 puntos de stamina'), {jorge.aumentarStamina(1)})		
+	}
 }
