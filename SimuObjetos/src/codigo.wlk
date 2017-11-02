@@ -27,14 +27,14 @@ class Minion {
 	
 	method realizarTareaSiPuede(tarea) {
 		if (self.elQueLaPuedaRealizar(tarea).puedeRealizar(tarea)) {
-			rol.realizar(tarea, self)
+			tarea.realizar(self.elQueLaPuedaRealizar(tarea))
 			tareas.add(tarea)
 		}
-	}
-	
-	method elQueLaPuedaRealizar(tarea) = rol.elQuePuedeRealizar(tarea)
+	}	
 	
 	method puedeRealizar(tarea) = tarea.puedeSerRealizada(self)
+	
+	method elQueLaPuedaRealizar(tarea) = rol.quienRealiza(tarea, self)
 	
 	method experiencia() = tareas.lenght() * tareas.sum({ tarea => tarea.dificultad(self) })
 	
@@ -101,11 +101,7 @@ class Rol {
 	
 	method factorStaminaPerdidaLimpiando(empleado) = 1
 	
-	method puedeRealizar(tarea, empleado) = empleado.puedeRealizar(tarea)
-	
-	method realizar(tarea, empleado) {
-		tarea.realizar(empleado)
-	}
+	method quienRealiza(tarea, empleado) = empleado
 }
 
 class Capataz inherits Rol {
@@ -114,13 +110,11 @@ class Capataz inherits Rol {
 	method subordinadoQuePuedeRealizarTareas(tarea) = subordinados.filter({ empleado => empleado.puedeRealizar(tarea) })
 	method subordinadoMasExperimentadoQuePuedeRealizar(tarea) = self.subordinadoQuePuedeRealizarTareas(tarea).sort({ sub1, sub2 => sub1.experiencia() > sub2.experiencia()}).head()
 	
-	override method puedeRealizar(tarea, empleado) = empleado.puedeRealizar(tarea) || self.subordinadoMasExperimentadoQuePuedeRealizar(tarea) != null
-	
-	override method realizar(tarea, empleado) {
-		if (self.subordinadoMasExperimentadoQuePuedeRealizar(tarea) != null)
-			self.subordinadoMasExperimentadoQuePuedeRealizar(tarea).realizar(tarea)
-		else if (empleado.puedeRealizar(tarea))
-			empleado.realizar(tarea) 
+	override method quienRealiza(tarea, empleado) {
+		if (self.subordinadoQuePuedeRealizarTareas(tarea).lenght() > 0)
+			return self.subordinadoMasExperimentadoQuePuedeRealizar(tarea)
+		else
+			return empleado
 	}
 }
 
@@ -192,7 +186,7 @@ class DefenderSector {
 	}
 	
 	method puedeSerRealizada(empleado) {
-		if(empleado.puedeDefender() && empleado.fuerza() >= gradoAmenaza)
+		if (empleado.puedeDefender() && empleado.fuerza() >= gradoAmenaza)
 			return true
 		else
 			throw new DefenderSectorException('El minion no puede defender el sector solicitado')
