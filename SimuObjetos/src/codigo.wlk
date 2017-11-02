@@ -2,6 +2,7 @@ class BiciclopeException inherits Exception {}
 class ArreglarMaquinaException inherits Exception {}
 class DefenderSectorException inherits Exception {}
 class LimpiarSectorException inherits Exception {}
+class CapatazException inherits Exception {}
 
 /* MINIONS */
 class Minion {
@@ -25,9 +26,13 @@ class Minion {
 	}
 	
 	method realizarTareaSiPuede(tarea) {
-		tarea.realizarSiPuede(self)
-		tareas.add(tarea)
+		if (self.puedeRealizar(tarea)) {
+			rol.realizar(tarea, self)
+			tareas.add(tarea)
+		}
 	}
+	
+	method puedeRealizar(tarea) = tarea.puedeSerRealizada(self)
 	
 	method experiencia() = tareas.lenght() * tareas.sum({ tarea => tarea.dificultad(self) })
 	
@@ -59,7 +64,10 @@ class Biclope inherits Minion {
 	}
 }
 
-class Ciclope inherits Minion {		
+class Ciclope inherits Minion {
+	
+	constructor(_rol) = super(_rol)
+			
 	override method factorRaza() = 2
 	override method factorDificultad() = 2
 }
@@ -88,11 +96,32 @@ class Rol {
 	
 	method staminaPerdidaDefendiendo(empleado) = empleado.stamina() / 2
 	
-	method factorStaminaPerdidaLimpiando(empleado) = 1	
+	method factorStaminaPerdidaLimpiando(empleado) = 1
+	
+	method realizar(tarea, empleado) {
+		tarea.realizar(empleado)
+	}
 }
 
-class Capataz {
-	var subordinados = #{}	
+class Capataz inherits Rol {
+	var subordinados = []
+	
+	method subordinadoQuePuedeRealizarTareas(tarea) = subordinados.filter({ empleado => empleado.puedeRealizar(tarea) })
+	method subordinadoMasExperimentadoQuePuedeRealizar(tarea) {
+ 
+		if (self.subordinadoQuePuedeRealizarTareas(tarea).lenght() > 0)
+			return self.subordinadoQuePuedeRealizarTareas(tarea).sort({ sub1, sub2 => sub1.experiencia() > sub2.experiencia()}).head()
+		else
+			throw new CapatazException('No hay subordinados que puedan realizar la tarea') 
+	}
+	
+	override method realizar(tarea, empleado) {
+		try {
+			tarea.realizar(self.subordinadoMasExperimentadoQuePuedeRealizar(tarea))			
+		} catch e: CapatazException('No hay subordinados que puedan realizar la tarea') {
+			empleado.realizarTareaSiPuede(tarea)
+		}
+	}
 }
 
 class Soldado inherits Rol {
@@ -139,11 +168,15 @@ class ArreglarMaquina {
 		herramientasNecesarias = _herramientasNecesarias
 	}
 	
-	method realizarSiPuede(empleado) {
+	method puedeSerRealizada(empleado) {
 		if(empleado.stamina() >= complejidad && empleado.tieneHerramientasNecesarias(herramientasNecesarias))
-			empleado.disminuirStamina(complejidad)
+			return true
 		else
 			throw new ArreglarMaquinaException('El minion no puede arreglar la maquina')
+	}
+	
+	method realizar(empleado) {
+		empleado.disminuirStamina(complejidad)				
 	}
 	
 	method dificultad(_) = complejidad * 2
@@ -158,11 +191,15 @@ class DefenderSector {
 		sector = _sector
 	}
 	
-	method realizarSiPuede(empleado) {
+	method puedeSerRealizada(empleado) {
 		if(empleado.puedeDefender() && empleado.fuerza() >= gradoAmenaza)
-			empleado.disminuirStamina(empleado.staminaPerdidaEnDefensa())
+			return true
 		else
 			throw new DefenderSectorException('El minion no puede defender el sector solicitado')
+	}
+	
+	method realizar(empleado) {
+		empleado.disminuirStamina(empleado.staminaPerdidaEnDefensa())
 	}
 	
 	method dificultad(empleado) = gradoAmenaza * empleado.factorDificultad() 
@@ -185,11 +222,15 @@ class LimpiarSector {
 		dificultad = nuevaDificultad
 	}
 	
-	method realizarSiPuede(empleado) {
+	method puedeSerRealizada(empleado) {
 		if(self.cumpleCondicionDeRealizacion(empleado))
-			empleado.disminuirStamina(staminaRequerida * empleado.factorStaminaPerdidaEnLimpieza())
+			true
 		else
 			throw new LimpiarSectorException('El minion no puede defender el sector solicitado')
+	}
+	
+	method realizar(empleado) {
+		empleado.disminuirStamina(staminaRequerida * empleado.factorStaminaPerdidaEnLimpieza())		
 	}
 	
 	method cumpleCondicionDeRealizacion(empleado) = (sector.esGrande() && empleado.stamina() > 4) || (!sector.esGrande() && empleado.stamina() > 1)
