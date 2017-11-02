@@ -26,11 +26,13 @@ class Minion {
 	}
 	
 	method realizarTareaSiPuede(tarea) {
-		if (self.puedeRealizar(tarea)) {
+		if (self.elQueLaPuedaRealizar(tarea).puedeRealizar(tarea)) {
 			rol.realizar(tarea, self)
 			tareas.add(tarea)
 		}
 	}
+	
+	method elQueLaPuedaRealizar(tarea) = rol.elQuePuedeRealizar(tarea)
 	
 	method puedeRealizar(tarea) = tarea.puedeSerRealizada(self)
 	
@@ -51,6 +53,7 @@ class Minion {
 	method factorStaminaPerdidaEnLimpieza() = rol.factorStaminaPerdidaLimpiando(self)
 	
 	method factorDificultad() = 1
+	
 }
 
 class Biclope inherits Minion {
@@ -98,6 +101,8 @@ class Rol {
 	
 	method factorStaminaPerdidaLimpiando(empleado) = 1
 	
+	method puedeRealizar(tarea, empleado) = empleado.puedeRealizar(tarea)
+	
 	method realizar(tarea, empleado) {
 		tarea.realizar(empleado)
 	}
@@ -107,20 +112,15 @@ class Capataz inherits Rol {
 	var subordinados = []
 	
 	method subordinadoQuePuedeRealizarTareas(tarea) = subordinados.filter({ empleado => empleado.puedeRealizar(tarea) })
-	method subordinadoMasExperimentadoQuePuedeRealizar(tarea) {
- 
-		if (self.subordinadoQuePuedeRealizarTareas(tarea).lenght() > 0)
-			return self.subordinadoQuePuedeRealizarTareas(tarea).sort({ sub1, sub2 => sub1.experiencia() > sub2.experiencia()}).head()
-		else
-			throw new CapatazException('No hay subordinados que puedan realizar la tarea') 
-	}
+	method subordinadoMasExperimentadoQuePuedeRealizar(tarea) = self.subordinadoQuePuedeRealizarTareas(tarea).sort({ sub1, sub2 => sub1.experiencia() > sub2.experiencia()}).head()
+	
+	override method puedeRealizar(tarea, empleado) = empleado.puedeRealizar(tarea) || self.subordinadoMasExperimentadoQuePuedeRealizar(tarea) != null
 	
 	override method realizar(tarea, empleado) {
-		try {
-			tarea.realizar(self.subordinadoMasExperimentadoQuePuedeRealizar(tarea))			
-		} catch e: CapatazException('No hay subordinados que puedan realizar la tarea') {
-			empleado.realizarTareaSiPuede(tarea)
-		}
+		if (self.subordinadoMasExperimentadoQuePuedeRealizar(tarea) != null)
+			self.subordinadoMasExperimentadoQuePuedeRealizar(tarea).realizar(tarea)
+		else if (empleado.puedeRealizar(tarea))
+			empleado.realizar(tarea) 
 	}
 }
 
